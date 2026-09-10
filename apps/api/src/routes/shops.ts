@@ -1,19 +1,16 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import { nanoid, customAlphabet } from "nanoid";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { AuthedRequest, requireAuth } from "../middleware/auth";
 import { hashPassword } from "../lib/auth";
+import { uploadDir } from "../lib/uploadDir";
 
 const tempPasswordId = customAlphabet("abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789", 10);
 
 const router = Router();
-
-const uploadDir = process.env.UPLOAD_DIR || "./uploads";
-fs.mkdirSync(uploadDir, { recursive: true });
 const logoUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadDir),

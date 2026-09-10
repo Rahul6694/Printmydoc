@@ -6,11 +6,9 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireSuperAdmin } from "../middleware/auth";
+import { uploadDir } from "../lib/uploadDir";
 
 const router = Router();
-
-const uploadDir = process.env.UPLOAD_DIR || "./uploads";
-fs.mkdirSync(uploadDir, { recursive: true });
 
 const buildUpload = multer({
   storage: multer.diskStorage({

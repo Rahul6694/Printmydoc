@@ -1,7 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
@@ -9,9 +8,7 @@ import { calculatePrice } from "../lib/pricing";
 import { AuthedRequest, requireAuth } from "../middleware/auth";
 import { createPrintJobForOrder, markOrderPaid } from "../services/printJobs";
 import { creditReferralBonusIfEligible } from "../lib/wallet";
-
-const uploadDir = process.env.UPLOAD_DIR || "./uploads";
-fs.mkdirSync(uploadDir, { recursive: true });
+import { uploadDir } from "../lib/uploadDir";
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
