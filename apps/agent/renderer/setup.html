@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>PrintMyDoc Agent Setup</title>
+<style>
+  body {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    background: #fbf8f3;
+    color: #0b1f1a;
+    margin: 0;
+    padding: 1.75rem;
+  }
+  h1 { font-size: 1.15rem; margin: 0 0 0.25rem; }
+  p.sub { color: #5b6b64; font-size: 0.85rem; margin: 0 0 1.25rem; }
+  label { display: block; font-size: 0.8rem; font-weight: 600; margin: 0.75rem 0 0.25rem; }
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.55rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid #d9e2dc;
+    font-size: 0.9rem;
+  }
+  button {
+    margin-top: 1.25rem;
+    width: 100%;
+    padding: 0.65rem;
+    border: none;
+    border-radius: 8px;
+    background: #1f6f54;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  #msg { margin-top: 0.75rem; font-size: 0.85rem; }
+  #msg.error { color: #b42318; }
+  #msg.ok { color: #1f6f54; }
+</style>
+</head>
+<body>
+  <h1>Connect this PC</h1>
+  <p class="sub">Paste the deviceKey and token generated from the merchant dashboard → Printers → Register Windows agent.</p>
+
+  <label>API URL</label>
+  <input id="apiUrl" value="http://localhost:4000" />
+
+  <label>Agent name</label>
+  <input id="agentName" value="Counter PC" />
+
+  <label>Device key</label>
+  <input id="deviceKey" placeholder="agent_xxxxxxxx" />
+
+  <label>Token</label>
+  <input id="token" placeholder="paste token" />
+
+  <button id="connect">Connect</button>
+  <div id="msg"></div>
+
+  <script src="setup.js"></script>
+</body>
+</html>

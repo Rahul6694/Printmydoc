@@ -1,0 +1,16 @@
+{
+  "name": "printmydoc",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@printmydoc/api & npm run dev --workspace=@printmydoc/web",
+    "dev:api": "npm run dev --workspace=@printmydoc/api",
+    "dev:web": "npm run dev --workspace=@printmydoc/web",
+    "db:push": "npm run db:push --workspace=@printmydoc/api",
+    "db:seed": "npm run db:seed --workspace=@printmydoc/api"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules
+.next
+dist
+release
+uploads/*
+!uploads/.gitkeep
+whatsapp-auth/
+.env
+.env.local
+*.log
+.DS_Store
+apps/api/uploads/
