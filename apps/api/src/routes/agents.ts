@@ -1,14 +1,12 @@
 import { Router } from "express";
-import path from "path";
-import fs from "fs";
 import crypto from "crypto";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { AuthedRequest, requireAuth } from "../middleware/auth";
 import { hashPassword, verifyPassword } from "../lib/auth";
+import { publicUrl } from "../lib/s3";
 
 const router = Router();
-const uploadDir = process.env.UPLOAD_DIR || "./uploads";
 
 function agentToken() {
   return crypto.randomBytes(24).toString("hex");
@@ -176,9 +174,7 @@ router.get("/:agentId/jobs", async (req, res) => {
 });
 
 router.get("/files/:storageKey", (req, res) => {
-  const filePath = path.join(uploadDir, path.basename(req.params.storageKey));
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File not found" });
-  return res.sendFile(path.resolve(filePath));
+  return res.redirect(302, publicUrl(req.params.storageKey));
 });
 
 router.post("/jobs/:jobId/status", async (req, res) => {

@@ -6,19 +6,13 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { AuthedRequest, requireAuth } from "../middleware/auth";
 import { hashPassword } from "../lib/auth";
-import { uploadDir } from "../lib/uploadDir";
+import { uploadBuffer, publicUrl } from "../lib/s3";
 
 const tempPasswordId = customAlphabet("abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789", 10);
 
 const router = Router();
 const logoUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || ".png";
-      cb(null, `logo-${Date.now()}-${nanoid(8)}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 1 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = ["image/png", "image/jpeg"];
@@ -180,7 +174,10 @@ router.post(
     if (!access) return res.status(403).json({ error: "Owner access required" });
     if (!req.file) return res.status(400).json({ error: "Logo file is required" });
 
-    const paymentLogoUrl = `/uploads/${req.file.filename}`;
+    const ext = path.extname(req.file.originalname).toLowerCase() || ".png";
+    const key = `logo-${Date.now()}-${nanoid(8)}${ext}`;
+    await uploadBuffer(key, req.file.buffer, req.file.mimetype);
+    const paymentLogoUrl = publicUrl(key);
     const shop = await prisma.shop.update({
       where: { id: req.params.shopId },
       data: { paymentLogoUrl },

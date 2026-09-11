@@ -1,23 +1,16 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireSuperAdmin } from "../middleware/auth";
-import { uploadDir } from "../lib/uploadDir";
+import { uploadBuffer, publicUrl, deleteObject, keyFromPublicUrl } from "../lib/s3";
 
 const router = Router();
 
 const buildUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || ".bin";
-      cb(null, `agent-build-${Date.now()}-${nanoid(8)}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 500 * 1024 * 1024 },
 });
 
@@ -37,6 +30,11 @@ router.post("/", requireAuth, requireSuperAdmin, buildUpload.single("file"), asy
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   if (!req.file) return res.status(400).json({ error: "Installer file is required" });
 
+  const ext = path.extname(req.file.originalname).toLowerCase() || ".bin";
+  const key = `agent-build-${Date.now()}-${nanoid(8)}${ext}`;
+  await uploadBuffer(key, req.file.buffer, req.file.mimetype);
+  const downloadUrl = publicUrl(key);
+
   const build = await prisma.agentBuild.upsert({
     where: {
       platform_arch_version: {
@@ -48,7 +46,7 @@ router.post("/", requireAuth, requireSuperAdmin, buildUpload.single("file"), asy
     update: {
       fileName: req.file.originalname,
       fileSizeBytes: req.file.size,
-      downloadUrl: `/uploads/${req.file.filename}`,
+      downloadUrl,
       releasedAt: new Date(),
     },
     create: {
@@ -57,7 +55,7 @@ router.post("/", requireAuth, requireSuperAdmin, buildUpload.single("file"), asy
       arch: parsed.data.arch,
       fileName: req.file.originalname,
       fileSizeBytes: req.file.size,
-      downloadUrl: `/uploads/${req.file.filename}`,
+      downloadUrl,
     },
   });
 
@@ -69,8 +67,7 @@ router.delete("/:id", requireAuth, requireSuperAdmin, async (req, res) => {
   if (!build) return res.status(404).json({ error: "Build not found" });
 
   await prisma.agentBuild.delete({ where: { id: build.id } });
-  const filePath = path.join(uploadDir, path.basename(build.downloadUrl));
-  fs.unlink(filePath, () => undefined);
+  await deleteObject(keyFromPublicUrl(build.downloadUrl)).catch(() => undefined);
 
   return res.json({ ok: true });
 });
