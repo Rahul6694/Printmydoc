@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import http from "http";
+import path from "path";
 import authRoutes from "./routes/auth";
 import shopRoutes from "./routes/shops";
 import orderRoutes from "./routes/orders";
@@ -14,6 +16,8 @@ import whatsappRoutes from "./routes/whatsapp";
 import planRoutes from "./routes/plans";
 import adminRoutes from "./routes/admin";
 import agentBuildRoutes from "./routes/agentBuilds";
+import { setupSockets } from "./sockets";
+import { attachWhatsAppIo } from "./services/whatsapp";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -52,11 +56,13 @@ app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/plans", planRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/agent-builds", agentBuildRoutes);
+app.use("/uploads", express.static(path.resolve(process.env.UPLOAD_DIR || "./uploads")));
 
-if (!process.env.VERCEL) {
-  app.listen(port, () => {
-    console.log(`PrintMyDoc API running on http://localhost:${port}`);
-  });
-}
+const server = http.createServer(app);
+const io = setupSockets(server, webOrigins);
+app.set("io", io);
+attachWhatsAppIo(io);
 
-export default app;
+server.listen(port, () => {
+  console.log(`PrintMyDoc API running on http://localhost:${port}`);
+});

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
@@ -8,10 +9,20 @@ import { calculatePrice } from "../lib/pricing";
 import { AuthedRequest, requireAuth } from "../middleware/auth";
 import { createPrintJobForOrder, markOrderPaid } from "../services/printJobs";
 import { creditReferralBonusIfEligible } from "../lib/wallet";
-import { uploadBuffer, publicUrl } from "../lib/s3";
+
+const uploadDir = process.env.UPLOAD_DIR || "./uploads";
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || ".bin";
+    cb(null, `${Date.now()}-${nanoid(8)}${ext}`);
+  },
+});
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage,
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = [
@@ -87,10 +98,6 @@ router.post("/", upload.single("file"), async (req, res) => {
       return res.status(404).json({ error: "Shop not found" });
     }
 
-    const ext = path.extname(req.file.originalname).toLowerCase() || ".bin";
-    const storageKey = `${Date.now()}-${nanoid(8)}${ext}`;
-    await uploadBuffer(storageKey, req.file.buffer, req.file.mimetype);
-
     const price = await calculatePrice({
       shopId: parsed.data.shopId,
       paperSize: parsed.data.paperSize,
@@ -142,7 +149,7 @@ router.post("/", upload.single("file"), async (req, res) => {
             originalName: req.file.originalname,
             mimeType: req.file.mimetype,
             sizeBytes: req.file.size,
-            storageKey,
+            storageKey: req.file.filename,
             pageCount: parsed.data.pageCount,
           },
         },
@@ -237,7 +244,7 @@ router.get("/shop/:shopId/documents", requireAuth, async (req: AuthedRequest, re
     orderBy: { createdAt: "desc" },
     take: 300,
   });
-  return res.json({ files: files.map((f) => ({ ...f, fileUrl: publicUrl(f.storageKey) })) });
+  return res.json({ files: files.map((f) => ({ ...f, fileUrl: `/uploads/${f.storageKey}` })) });
 });
 
 router.get("/:orderId/detail", requireAuth, async (req: AuthedRequest, res) => {

@@ -1,8 +1,9 @@
 import path from "path";
 import fs from "fs";
+import type { Server as SocketIOServer } from "socket.io";
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from "@whiskeysockets/baileys";
 import pino from "pino";
-import { prisma } from "./lib/prisma";
+import { prisma } from "../lib/prisma";
 
 const waLogger = pino({ level: "silent" });
 
@@ -18,9 +19,22 @@ type ShopSession = {
 };
 
 const sessions = new Map<string, ShopSession>();
+let ioRef: SocketIOServer | null = null;
+
+export function attachWhatsAppIo(io: SocketIOServer) {
+  ioRef = io;
+}
 
 function authDirFor(shopId: string) {
   return path.resolve(process.env.WHATSAPP_AUTH_DIR || "./whatsapp-auth", shopId);
+}
+
+function emit(shopId: string, state: ShopSession) {
+  ioRef?.to(`whatsapp:${shopId}`).emit("whatsapp:update", {
+    status: state.status,
+    qr: state.qr || null,
+    phoneNumber: state.phoneNumber || null,
+  });
 }
 
 async function persist(shopId: string, status: Status, phoneNumber?: string | null) {
@@ -39,18 +53,6 @@ export function getSessionState(shopId: string): { status: Status; qr: string | 
   const s = sessions.get(shopId);
   if (!s) return { status: "OFFLINE", qr: null, phoneNumber: null };
   return { status: s.status, qr: s.qr || null, phoneNumber: s.phoneNumber || null };
-}
-
-export async function getStatus(shopId: string) {
-  const live = getSessionState(shopId);
-  if (live.status !== "OFFLINE") return live;
-
-  const stored = await prisma.whatsAppSession.findUnique({ where: { shopId } });
-  return {
-    status: stored?.status || "OFFLINE",
-    qr: null,
-    phoneNumber: stored?.phoneNumber || null,
-  };
 }
 
 export async function startSession(shopId: string) {
@@ -85,6 +87,7 @@ export async function startSession(shopId: string) {
         state.qr = qr;
         state.status = "PAIRING";
         await persist(shopId, "PAIRING").catch(() => undefined);
+        emit(shopId, state);
       }
 
       if (connection === "open") {
@@ -92,6 +95,7 @@ export async function startSession(shopId: string) {
         state.qr = undefined;
         state.phoneNumber = sock.user?.id?.split(":")[0] || sock.user?.id || undefined;
         await persist(shopId, "CONNECTED", state.phoneNumber || null).catch(() => undefined);
+        emit(shopId, state);
       }
 
       if (connection === "close") {
@@ -99,7 +103,9 @@ export async function startSession(shopId: string) {
         const loggedOut = statusCode === DisconnectReason.loggedOut;
 
         sessions.delete(shopId);
+        const closedState: ShopSession = { status: "OFFLINE", starting: false };
         await persist(shopId, "OFFLINE").catch(() => undefined);
+        emit(shopId, closedState);
 
         if (loggedOut) {
           fs.rmSync(authDir, { recursive: true, force: true });
@@ -111,6 +117,7 @@ export async function startSession(shopId: string) {
     state.starting = false;
     sessions.delete(shopId);
     await persist(shopId, "OFFLINE").catch(() => undefined);
+    emit(shopId, state);
     throw err;
   }
 
@@ -129,4 +136,5 @@ export async function logoutSession(shopId: string) {
   sessions.delete(shopId);
   fs.rmSync(authDirFor(shopId), { recursive: true, force: true });
   await persist(shopId, "OFFLINE").catch(() => undefined);
+  emit(shopId, { status: "OFFLINE", starting: false });
 }
