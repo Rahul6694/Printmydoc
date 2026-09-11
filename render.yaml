@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: printmydoc-api
+    runtime: node
+    rootDir: apps/api
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    disk:
+      name: printmydoc-api-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: UPLOAD_DIR
+        value: /data/uploads
+      - key: WHATSAPP_AUTH_DIR
+        value: /data/whatsapp-auth
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMENT_MODE
+        sync: false
